@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NSE Stock Analyzer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f6f2;--surface:#fff;--surface2:#f1f0eb;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+  --text:#181816;--muted:#666;--hint:#999;
+  --red:#c0392b;--red-bg:#fdf0ee;--red-mid:#e74c3c;
+  --green:#27643a;--green-bg:#edf7f0;--green-mid:#2ecc71;
+  --amber:#7a4a0a;--amber-bg:#fef9ee;--amber-mid:#e67e22;
+  --blue:#1a4f8a;--blue-bg:#edf3fc;
+  --r:8px;--rlg:13px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#18181a;--surface:#222224;--surface2:#2a2a2c;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+  --text:#eeeee8;--muted:#aaa;--hint:#666;
+  --red:#e88080;--red-bg:#2e1818;--red-mid:#e74c3c;
+  --green:#7dcb96;--green-bg:#112a1a;--green-mid:#2ecc71;
+  --amber:#f5c07a;--amber-bg:#291a08;--amber-mid:#e67e22;
+  --blue:#7ab4e8;--blue-bg:#0e2035;
+}}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+.page{max-width:1140px;margin:0 auto;padding:2rem 1.25rem}
+
+/* Header */
+.ph{margin-bottom:2rem}
+.ph h1{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.ph p{font-size:13px;color:var(--muted);margin-top:3px}
+
+/* Panel */
+.panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--rlg);padding:1.1rem 1.25rem;margin-bottom:1.25rem}
+.panel-title{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+
+/* Presets */
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.pbtn{font-size:12px;padding:5px 12px;border-radius:99px;border:0.5px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:.12s}
+.pbtn:hover,.pbtn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+/* Form */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.field label{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px}
+.field input{width:100%;padding:8px 11px;font-size:14px;border:0.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);outline:none}
+.field input:focus{border-color:var(--text)}
+.ticker-row{display:flex;gap:8px;align-items:flex-end;margin-top:10px}
+.ticker-row .field{flex:1}
+.go-btn{padding:9px 24px;font-size:14px;font-weight:700;border-radius:var(--r);border:none;background:var(--text);color:var(--bg);cursor:pointer;white-space:nowrap;transition:.12s}
+.go-btn:hover{opacity:.82}
+.go-btn:disabled{opacity:.38;cursor:not-allowed}
+
+/* Summary */
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
+.sc{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--rlg);padding:12px 15px}
+.sc-lbl{font-size:11px;color:var(--hint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.sc-val{font-size:21px;font-weight:700}
+.sc-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:0.5px solid var(--border);margin-bottom:1.25rem}
+.tab{font-size:13px;padding:7px 16px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:.12s}
+.tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:600}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--rlg);padding:1rem 1.1rem;transition:.12s}
+.card:hover{border-color:var(--border2)}
+.card.dip{border-left:3px solid var(--red-mid)}
+.card.swing{border-left:3px solid var(--amber-mid)}
+.card.bull{border-left:3px solid var(--green-mid)}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.c-sym{font-size:16px;font-weight:700}
+.c-chg{font-size:15px;font-weight:700}
+.neg{color:var(--red-mid)}.pos{color:var(--green-mid)}
+
+/* Mini chart */
+.mini-chart{width:100%;height:52px;display:block;margin-bottom:7px}
+
+/* Daily row */
+.daily{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:9px}
+.dc{text-align:center}
+.dc-day{font-size:9px;color:var(--hint);text-transform:uppercase;letter-spacing:.03em}
+.dc-val{font-size:11px;font-weight:600;margin-top:1px}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.metric{background:var(--surface2);border-radius:var(--r);padding:7px 10px}
+.m-lbl{font-size:10px;color:var(--hint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.m-val{font-size:13px;font-weight:600}
+
+/* Tags */
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tag{font-size:10px;font-weight:600;padding:2px 9px;border-radius:99px}
+.t-dip{background:var(--red-bg);color:var(--red)}
+.t-vol{background:var(--amber-bg);color:var(--amber)}
+.t-sup{background:var(--green-bg);color:var(--green)}
+.t-res{background:var(--blue-bg);color:var(--blue)}
+.t-swg{background:var(--amber-bg);color:var(--amber)}
+
+/* Analysis */
+.analysis{font-size:12px;color:var(--muted);line-height:1.6;border-top:.5px solid var(--border);padding-top:8px}
+
+/* States */
+.state{text-align:center;padding:4rem 1rem;color:var(--muted);font-size:14px}
+.spinner{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--muted);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{background:var(--red-bg);color:var(--red);border-radius:var(--r);padding:10px 14px;margin-bottom:1rem;font-size:13px;display:none}
+
+.hidden{display:none!important}
+@media(max-width:580px){
+  .summary{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="ph">
+    <h1>NSE Stock Swing & Dip Analyzer</h1>
+    <p>Real data from Yahoo Finance · Free · No API key · Pick any week</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="panel">
+    <div class="panel-title">Quick presets</div>
+    <div class="presets">
+      {% for p in presets %}
+      <button class="pbtn" onclick="loadPreset('{{p}}')">{{p|upper|replace('_',' ')}}</button>
+      {% endfor %}
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Week start (Monday)</label>
+        <input type="date" id="wstart" value="{{default_start}}"/>
+      </div>
+      <div class="field">
+        <label>Week end (Friday)</label>
+        <input type="date" id="wend" value="{{default_end}}"/>
+      </div>
+    </div>
+    <div class="ticker-row">
+      <div class="field">
+        <label>Symbols (comma separated)</label>
+        <input type="text" id="syms" placeholder="RELIANCE, TCS, INFY, HDFCBANK..."/>
+      </div>
+      <button class="go-btn" id="goBtn" onclick="analyze()">Analyze</button>
+    </div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+
+  <!-- Summary -->
+  <div class="summary hidden" id="summaryBar">
+    <div class="sc"><div class="sc-lbl">Analyzed</div><div class="sc-val" id="sCount">0</div></div>
+    <div class="sc"><div class="sc-lbl">Biggest dip</div><div class="sc-val neg" id="sDip">—</div><div class="sc-sub" id="sDipName"></div></div>
+    <div class="sc"><div class="sc-lbl">Biggest swing</div><div class="sc-val" style="color:var(--amber-mid)" id="sSwing">—</div><div class="sc-sub" id="sSwingName"></div></div>
+    <div class="sc"><div class="sc-lbl">Net gainers</div><div class="sc-val pos" id="sGain">0</div><div class="sc-sub">up this week</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs hidden" id="tabBar">
+    <div class="tab active" data-f="all"     onclick="setTab(this)">All</div>
+    <div class="tab"        data-f="dips"    onclick="setTab(this)">Dips</div>
+    <div class="tab"        data-f="gainers" onclick="setTab(this)">Gainers</div>
+    <div class="tab"        data-f="volatile"onclick="setTab(this)">Volatile</div>
+  </div>
+
+  <div id="main">
+    <div class="state">Select a preset or enter stock symbols, choose a week, and click Analyze.</div>
+  </div>
+
+</div>
+
+<script>
+let all=[], filter='all';
+
+async function loadPreset(name){
+  const r=await fetch('/preset/'+name);
+  const d=await r.json();
+  document.getElementById('syms').value=d.symbols.join(', ');
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().replace(' ','_')===name||b.textContent.toLowerCase()===name));
+}
+
+function setTab(el){
+  filter=el.dataset.f;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+async function analyze(){
+  const syms=document.getElementById('syms').value.split(/[,\s]+/).map(s=>s.trim().toUpperCase()).filter(Boolean);
+  const ws=document.getElementById('wstart').value;
+  const we=document.getElementById('wend').value;
+  if(!syms.length){showErr('Enter at least one stock symbol.');return;}
+  if(!ws||!we){showErr('Pick a date range.');return;}
+
+  const btn=document.getElementById('goBtn');
+  btn.disabled=true;btn.textContent='Fetching...';
+  document.getElementById('errBox').style.display='none';
+  document.getElementById('summaryBar').classList.add('hidden');
+  document.getElementById('tabBar').classList.add('hidden');
+  document.getElementById('main').innerHTML=`<div class="state"><div class="spinner"></div>Fetching real NSE data for ${syms.length} stock${syms.length>1?'s':''}…<br><small style="margin-top:8px;display:block;color:var(--hint)">Pulling from Yahoo Finance</small></div>`;
+
+  try{
+    const res=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:syms,week_start:ws,week_end:we})});
+    const data=await res.json();
+    all=data.results||[];
+    const failed=data.failed||[];
+
+    if(!all.length){showErr('No data returned. Check symbols or try a different week.');btn.disabled=false;btn.textContent='Analyze';return;}
+    if(failed.length) showErr('Could not fetch: '+failed.join(', ')+' — skipped.',true);
+
+    const bigDip=all.reduce((a,b)=>+b.weekly_change<+a.weekly_change?b:a);
+    const bigSwg=all.reduce((a,b)=>Math.abs(+b.max_swing)>Math.abs(+a.max_swing)?b:a);
+    const gainers=all.filter(s=>+s.weekly_change>0).length;
+    document.getElementById('sCount').textContent=all.length;
+    document.getElementById('sDip').textContent=`${(+bigDip.weekly_change).toFixed(2)}%`;
+    document.getElementById('sDipName').textContent=bigDip.symbol;
+    document.getElementById('sSwing').textContent=`±${Math.abs(+bigSwg.max_swing).toFixed(2)}%`;
+    document.getElementById('sSwingName').textContent=bigSwg.symbol;
+    document.getElementById('sGain').textContent=gainers;
+
+    document.getElementById('summaryBar').classList.remove('hidden');
+    document.getElementById('tabBar').classList.remove('hidden');
+    filter='all';
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+    render();
+  }catch(e){showErr('Server error: '+e.message);}
+  btn.disabled=false;btn.textContent='Analyze';
+}
+
+function render(){
+  let list=all;
+  if(filter==='dips')    list=all.filter(s=>+s.weekly_change<-1);
+  else if(filter==='gainers') list=all.filter(s=>+s.weekly_change>0);
+  else if(filter==='volatile') list=all.filter(s=>Math.abs(+s.max_swing)>4);
+
+  const main=document.getElementById('main');
+  if(!list.length){main.innerHTML='<div class="state">No stocks match this filter.</div>';return;}
+  const grid=document.createElement('div');grid.className='grid';
+  list.sort((a,b)=>+a.weekly_change - +b.weekly_change);
+  list.forEach(s=>grid.appendChild(card(s)));
+  main.innerHTML='';main.appendChild(grid);
+}
+
+function card(s){
+  const el=document.createElement('div');
+  const type=+s.weekly_change<-3?'dip':Math.abs(+s.max_swing)>6?'swing':'bull';
+  el.className='card '+type;
+  const neg=+s.weekly_change<0;
+  const sign=neg?'':'+';
+
+  const days=s.daily_changes||[];
+  const labels=s.day_labels||['M','T','W','T','F'];
+
+  // sparkline
+  const w=290,h=52,min=Math.min(...days),max=Math.max(...days),range=max-min||.01;
+  const pts=days.map((v,i)=>{
+    const x=(i/(days.length-1))*w;
+    const y=h-6-((v-min)/range)*(h-14);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const sc=neg?'#e74c3c':'#2ecc71';
+  const svg=`<svg class="mini-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="0" y1="${(h/2).toFixed(0)}" x2="${w}" y2="${(h/2).toFixed(0)}" stroke="rgba(128,128,128,.2)" stroke-width=".5" stroke-dasharray="4,4"/>
+    <polyline points="${pts}" fill="none" stroke="${sc}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${days.map((v,i)=>{const x=(i/(days.length-1))*w,y=h-6-((v-min)/range)*(h-14);return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${sc}"/>`;}).join('')}
+  </svg>`;
+
+  // daily cells
+  const daily=days.map((v,i)=>`<div class="dc"><div class="dc-day">${labels[i]||'?'}</div><div class="dc-val ${v<0?'neg':'pos'}">${v>=0?'+':''}${(+v).toFixed(1)}%</div></div>`).join('');
+
+  // tags
+  const tags=[];
+  if(+s.weekly_change<-2) tags.push('<span class="tag t-dip">Dip</span>');
+  if(s.volume_spike) tags.push('<span class="tag t-vol">Vol spike</span>');
+  if(s.near_support) tags.push('<span class="tag t-sup">Near support</span>');
+  if(s.near_resistance) tags.push('<span class="tag t-res">Near resistance</span>');
+  if(Math.abs(+s.max_swing)>6) tags.push('<span class="tag t-swg">High swing</span>');
+
+  el.innerHTML=`
+    <div class="card-head">
+      <div><div class="c-sym">${s.symbol}</div><div style="font-size:11px;color:var(--hint);margin-top:2px">NSE · ₹${s.last_close}</div></div>
+      <div class="c-chg ${neg?'neg':'pos'}">${sign}${(+s.weekly_change).toFixed(2)}%</div>
+    </div>
+    ${svg}
+    <div class="daily">${daily}</div>
+    <div class="metrics">
+      <div class="metric"><div class="m-lbl">Max dip (day)</div><div class="m-val neg">${(+s.max_dip).toFixed(2)}%</div></div>
+      <div class="metric"><div class="m-lbl">Max swing</div><div class="m-val" style="color:var(--amber-mid)">±${(+s.max_swing).toFixed(2)}%</div></div>
+      <div class="metric"><div class="m-lbl">Support</div><div class="m-val pos">₹${s.support}</div></div>
+      <div class="metric"><div class="m-lbl">Resistance</div><div class="m-val neg">₹${s.resistance}</div></div>
+    </div>
+    <div class="tags">${tags.join('')}</div>
+  `;
+  return el;
+}
+
+function showErr(msg,soft=false){
+  const el=document.getElementById('errBox');
+  el.textContent=msg;el.style.display='block';
+  if(soft) setTimeout(()=>el.style.display='none',5000);
+}
+</script>
+</body>
+</html>
